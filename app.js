@@ -8,6 +8,8 @@ const mongoose=require("mongoose");
 const privateConstants=require('./private-constants');
 // Routes Import
 const AuthController=require('./Controller/AuthController');
+const TweetController=require('./Controller/TweetController');
+const {checkAuth}=require('./middleware');
 
 
 
@@ -18,11 +20,12 @@ const app=express();
 mongoose.connect(privateConstants.MONGODBURI,{
     useNewUrlParser:true,
     useUnifiedTopology:true
-}).then(res=>{
-    console.log('connected to detabase');
-}).catch(err=>{
-    console.log("failed to load",err);
 })
+//.then(res=>{
+//     console.log('connected to detabase');
+// }).catch(err=>{
+//     console.log("failed to load",err);
+// })
 
 // MiddleWare
 app.use(express.json());
@@ -44,6 +47,7 @@ app.use(session({
 
 //Router this will not run al
 app.use('/Auth',AuthController);
+app.use('/Tweet',TweetController);
 
 app.get('/',(req,res)=>{
     res.send('Landed on HomePage');

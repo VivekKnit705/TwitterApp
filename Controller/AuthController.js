@@ -1,7 +1,11 @@
 const express=require('express');
+const bcrypt=require('bcrypt');
 
+const UserModel=require('../Models/UserModel');
 const {cleanUpAndValidate}=require('../Utils/AuthUtils');
-const {verifyUsernameAndEmailExist}=require('../Models/UserModel');
+// const {verifyUsernameAndEmailExist}=require('../Models/UserModel');
+
+const { db } = require('../Schemas/UserSchema');
 
 const auth=express.Router();
 
@@ -12,10 +16,10 @@ auth.get('/',(req,res)=>{
 
 auth.post('/register', async (req, res) => {
 
-    const { email, username, password, name, phoneNumber, profilePic } = req.body;
-
+    const { email, username, password, name, phonenumber, profilePic } = req.body;
+   
     // Validate data
-    cleanUpAndValidate({email, username, phoneNumber, password}).then(async () => {
+    cleanUpAndValidate({email, username, phonenumber, password}).then(async () => {
         // Validate if user is already registered
         try {
             await UserModel.verifyUsernameAndEmailExist({username, email});
@@ -29,9 +33,10 @@ auth.post('/register', async (req, res) => {
         }
 
         // Save the data in db
-
-        const user = new UserModel( { email, username, password, name, phoneNumber, profilePic } );
-
+        
+        const user = new UserModel( { email, username, password, name, phonenumber, profilePic } );
+        
+        
         try {
             const dbUser = await user.registerUser();
 
@@ -67,8 +72,62 @@ auth.post('/register', async (req, res) => {
 
 
 
-auth.get('/login',(req,res)=>{
-    res.send("Landed at Login Page");
+auth.post('/login',async (req,res)=>{
+    const {loginId,password}=req.body;
+    if(!loginId || !password){
+        return res.send({
+            status:401,
+            message:"Invalid Credential"
+        });
+    }
+    try{
+        const dbUser=await UserModel.findUserWithLoginId({loginId});
+        const isMatch=await bcrypt.compare(password,dbUser.password);
+        if(!isMatch){
+            return res.send({
+                status:401,
+                message:"Invalid Password"
+            })
+        }
+
+        // Session based Auth
+        req.session.isAuth=true;
+        req.session.user={
+            userId:dbUser._id,
+            username:dbUser.username,
+            name:dbUser.name
+        }
+        return res.send({
+            status:200,
+            message:"Login Succesful",
+            data:{
+                name:dbUser.name,
+                userId:dbUser._id,
+                email:dbUser.email,
+                username:dbUser.username
+            }
+        })
+    }
+    catch(err){
+        return res.send({
+            status:401,
+            message:"Error Occured",
+            error:err
+        })
+    }
+
+})
+auth.post('/logout',(req,res)=>{
+    req.session.destroy((err)=>{
+        if(err){
+            throw err;
+        }
+        return res.send("Logeed Out seccusfully")
+    })
+})
+
+auth.get('/*',(req,res)=>{
+    res.send("Page not Found");
 })
 
 module.exports=auth;
